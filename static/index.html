@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="it" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NÈURA</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="login" class="login-shell">
+  <form class="login-card" onsubmit="return false">
+    <div class="brand-mark">N</div>
+    <h1>NÈURA</h1>
+    <p>Assistente personale con memoria privata.</p>
+    <label>Password</label>
+    <input id="password" type="password" autocomplete="current-password">
+    <button id="loginBtn">Accedi</button>
+    <div id="loginError" class="error"></div>
+  </form>
+</div>
+
+<div id="app" class="app hidden">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark small">N</span><strong>NÈURA</strong></div>
+    <nav>
+      <button class="nav active" data-view="chat">Conversazione</button>
+      <button class="nav" data-view="dashboard">Panoramica</button>
+      <button class="nav" data-view="memories">Memorie</button>
+      <button class="nav" data-view="diary">Diario</button>
+      <button class="nav" data-view="laboratory">Laboratorio</button>
+      <button class="nav" data-view="versions">Versioni</button>
+      <button class="nav" data-view="backups">Backup</button>
+      <button class="nav" data-view="settings">Impostazioni</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="status-line"><span id="modelDot" class="dot"></span><span id="modelStatus">Modello</span></div>
+      <button id="themeToggle" class="quiet">Tema scuro</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button id="menuBtn" class="icon-btn">☰</button>
+      <div><h2 id="viewTitle">Conversazione</h2><p id="viewSubtitle">Parla con NÈURA</p></div>
+      <button id="updateBtn" class="secondary">Aggiornati</button>
+    </header>
+
+    <section id="view-chat" class="view active">
+      <div id="messages" class="messages">
+        <article class="message assistant"><div class="avatar">N</div><div class="message-body">Ciao Stephan. Sono pronta.</div></article>
+      </div>
+      <div class="composer-wrap">
+        <div class="composer">
+          <textarea id="message" rows="1" placeholder="Scrivi un messaggio"></textarea>
+          <button id="voiceBtn" class="icon-btn" title="Dettatura">🎤</button>
+          <button id="sendBtn">Invia</button>
+        </div>
+        <small>NÈURA può sbagliare. Verifica le decisioni importanti.</small>
+      </div>
+    </section>
+
+    <section id="view-dashboard" class="view content-view">
+      <div id="stats" class="stats-grid"></div>
+      <div class="panel"><div class="panel-head"><h3>Attività recente</h3></div><canvas id="activityChart" height="110"></canvas></div>
+    </section>
+
+    <section id="view-memories" class="view content-view">
+      <div class="panel">
+        <div class="panel-head"><h3>Memorie</h3></div>
+        <div class="inline-form"><input id="newMemory" placeholder="Aggiungi una memoria"><button id="saveMemory">Ricorda</button></div>
+        <div id="memoryList" class="list"></div>
+      </div>
+    </section>
+
+    <section id="view-diary" class="view content-view">
+      <div class="panel">
+        <div class="panel-head"><h3>Diario interno</h3><button id="newDiaryBtn" class="secondary">Nuova nota</button></div>
+        <div id="diaryEditor" class="editor hidden"><input id="diaryTitle" placeholder="Titolo"><textarea id="diaryContent" rows="6" placeholder="Contenuto"></textarea><button id="saveDiary">Salva</button></div>
+        <div id="diaryList" class="list"></div>
+      </div>
+    </section>
+
+    <section id="view-laboratory" class="view content-view">
+      <div class="panel">
+        <div class="panel-head"><div><h3>Laboratorio</h3><p>Propone modifiche e test, senza applicarle automaticamente.</p></div></div>
+        <textarea id="labGoal" rows="4" placeholder="Descrivi il miglioramento che vuoi far analizzare"></textarea>
+        <button id="createProposal">Genera proposta</button>
+        <div id="proposalList" class="list"></div>
+      </div>
+    </section>
+
+    <section id="view-versions" class="view content-view"><div class="panel"><div class="panel-head"><h3>Versioni di apprendimento</h3></div><div id="versionList" class="list"></div></div></section>
+    <section id="view-backups" class="view content-view"><div class="panel"><div class="panel-head"><h3>Backup</h3><button id="backupBtn">Crea backup</button></div><div id="backupList" class="list"></div></div></section>
+
+    <section id="view-settings" class="view content-view">
+      <div class="panel settings">
+        <h3>Aspetto</h3>
+        <label class="setting-row"><span><strong>Tema scuro</strong><small>Il tema chiaro è quello predefinito.</small></span><input id="darkSwitch" type="checkbox"></label>
+        <label class="setting-row"><span><strong>Lettura vocale</strong><small>Legge ad alta voce le risposte.</small></span><input id="speakSwitch" type="checkbox"></label>
+        <h3>Sessione</h3>
+        <button id="newSession" class="secondary">Nuova conversazione</button>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>
