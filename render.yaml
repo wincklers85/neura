@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: neura-ai
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+      - key: HF_HOME
+        value: /var/data/huggingface
+      - key: LLM_BASE_URL
+        value: http://127.0.0.1:8080/v1
+      - key: MODEL_NAME
+        value: neura-local
+      - key: LOCAL_MODEL
+        value: Qwen/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M
+      - key: MODEL_CONTEXT
+        value: "4096"
+      - key: MODEL_THREADS
+        value: "2"
+      - key: APP_PASSWORD
+        sync: false
+      - key: ENCRYPTION_KEY
+        generateValue: true
+    disk:
+      name: neura-data
+      mountPath: /var/data
+      sizeGB: 2
