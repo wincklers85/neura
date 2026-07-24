@@ -24,6 +24,10 @@
     <div class="brand"><span class="brand-mark small">N</span><strong>NÈURA</strong></div>
     <nav>
       <button class="nav active" data-view="chat">Conversazione</button>
+      <button class="nav" data-view="conversations">Chat passate</button>
+      <button class="nav" data-view="library">Libreria</button>
+      <button class="nav" data-view="vision">Visione</button>
+      <button class="nav" data-view="constitution">Costituzione</button>
       <button class="nav" data-view="dashboard">Panoramica</button>
       <button class="nav" data-view="memories">Memorie</button>
       <button class="nav" data-view="diary">Diario</button>
@@ -52,11 +56,35 @@
       <div class="composer-wrap">
         <div class="composer">
           <textarea id="message" rows="1" placeholder="Scrivi un messaggio"></textarea>
+          <button id="webAskBtn" class="secondary" title="Autorizza Internet solo per il prossimo messaggio">Internet: no</button>
           <button id="voiceBtn" class="icon-btn" title="Dettatura">🎤</button>
           <button id="sendBtn">Invia</button>
         </div>
         <small>NÈURA può sbagliare. Verifica le decisioni importanti.</small>
       </div>
+    </section>
+
+
+    <section id="view-conversations" class="view content-view">
+      <div class="panel"><div class="panel-head"><div><h3>Chat passate</h3><p>Riapri e continua qualsiasi conversazione.</p></div><button id="newChatTop">Nuova chat</button></div>
+      <input id="chatSearch" placeholder="Cerca in tutte le chat..."><div id="conversationList" class="list"></div></div>
+    </section>
+
+    <section id="view-library" class="view content-view">
+      <div class="panel"><div class="panel-head"><div><h3>Libreria personale</h3><p>Carica documenti da leggere oppure da studiare permanentemente.</p></div></div>
+      <div class="upload-grid"><input id="libraryFile" type="file"><input id="libraryCategory" placeholder="Categoria" value="Generale"><label><input id="libraryLearn" type="checkbox" checked> Studia e impara</label><button id="libraryUploadBtn">Carica</button></div>
+      <div id="libraryStatus" class="notice hidden"></div><div id="libraryList" class="list"></div></div>
+    </section>
+
+    <section id="view-vision" class="view content-view">
+      <div class="panel"><div class="panel-head"><div><h3>Visione</h3><p>Mostra un'immagine a NÈURA e falle domande.</p></div></div>
+      <input id="visionFile" type="file" accept="image/*"><textarea id="visionQuestion" rows="3" placeholder="Cosa vuoi sapere su questa immagine?"></textarea><button id="visionAnalyzeBtn">Analizza immagine</button>
+      <div id="visionResult" class="item hidden"></div></div>
+    </section>
+
+    <section id="view-constitution" class="view content-view">
+      <div class="panel"><div class="panel-head"><div><h3>Costituzione di NÈURA</h3><p>Regole fondamentali scritte in italiano naturale.</p></div><button id="saveConstitution">Salva</button></div>
+      <textarea id="constitutionText" rows="24"></textarea></div>
     </section>
 
     <section id="view-dashboard" class="view content-view">
@@ -82,15 +110,26 @@
 
     <section id="view-laboratory" class="view content-view">
       <div class="panel">
-        <div class="panel-head"><div><h3>Laboratorio</h3><p>Propone modifiche e test, senza applicarle automaticamente.</p></div></div>
+        <div class="panel-head"><div><h3>Laboratorio di programmazione</h3>
+<p>Studia il codice, usa le lezioni apprese, prova le modifiche in una copia temporanea e le applica solo dopo la tua conferma.</p></div>
+<button id="diagnosticBtn" class="secondary">Diagnosi</button></div>
         <textarea id="labGoal" rows="4" placeholder="Descrivi il miglioramento che vuoi far analizzare"></textarea>
         <button id="createProposal">Genera proposta</button>
+        <div id="diagnosticResult" class="notice hidden"></div>
+        <div class="lesson-box">
+          <h4>Insegna una regola di programmazione</h4>
+          <div class="inline-form"><input id="codingLesson" placeholder="Esempio: non bloccare mai la chat mentre il modello è in avvio"><button id="saveCodingLesson">Salva lezione</button></div>
+          <div id="lessonList" class="list compact"></div>
+        </div>
         <div id="proposalList" class="list"></div>
       </div>
     </section>
 
     <section id="view-versions" class="view content-view"><div class="panel"><div class="panel-head"><h3>Versioni di apprendimento</h3></div><div id="versionList" class="list"></div></div></section>
-    <section id="view-backups" class="view content-view"><div class="panel"><div class="panel-head"><h3>Backup</h3><button id="backupBtn">Crea backup</button></div><div id="backupList" class="list"></div></div></section>
+    <section id="view-backups" class="view content-view">
+      <div class="panel"><div class="panel-head"><div><h3>Backup dati</h3><p>Memorie, conversazioni, diario e configurazione.</p></div><button id="backupBtn">Crea backup dati</button></div><div id="backupList" class="list"></div></div>
+      <div class="panel backup-code"><div class="panel-head"><div><h3>Backup applicazione</h3><p>Snapshot del codice prima di un aggiornamento o rollback.</p></div><button id="codeBackupBtn">Crea snapshot</button></div><div id="codeBackupList" class="list"></div></div>
+    </section>
 
     <section id="view-settings" class="view content-view">
       <div class="panel settings">
