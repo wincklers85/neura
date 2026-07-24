@@ -7,25 +7,32 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, UploadFile, File, Form
 import httpx
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from db import init_db
-from llm import chat as llm_chat, LLMError
+from llm import chat as llm_chat, LLMError, provider_status
+from web_access import search_web, read_page, WebSearchError
+from update_manager import create_code_snapshot, list_code_snapshots, rollback_code
 from memory import (
     add_message, history, add_memory, retrieve_memories, list_memories,
     forget_memory, save_feedback, feedback_lessons
 )
 from security import valid_password
 from updater import consolidate_learning, latest_reflections, list_versions
-from laboratory import create_proposal, list_proposals, update_proposal_status
+from laboratory import (apply_proposal, create_proposal, get_proposal, list_proposals, update_proposal_status, validate_proposal)
+from coding_engine import add_lesson, list_lessons, run_self_diagnostic
 from db import db, DB_PATH
 from security import decrypt_text, encrypt_text
+from conversations import ensure_conversation, list_sessions, rename_session, archive_session, delete_session, session_messages, search_sessions
+from constitution import load_constitution, save_constitution
+from library_engine import ingest, list_documents, search_knowledge
+from vision_engine import analyze_image
 
-app = FastAPI(title="NÈURA", version="0.3.0")
+app = FastAPI(title="NÈURA Surface", version="2.0.0")
 STATIC = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
@@ -59,6 +66,20 @@ class LoginIn(BaseModel):
 class ChatIn(BaseModel):
     session_id: str = Field(min_length=8, max_length=100)
     message: str = Field(min_length=1, max_length=12000)
+    use_web: bool = False
+    internet_approved: bool = False
+
+
+
+
+class SessionRenameIn(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+
+class SessionArchiveIn(BaseModel):
+    archived: bool
+
+class ConstitutionIn(BaseModel):
+    content: str = Field(min_length=20, max_length=30000)
 
 
 class FeedbackIn(BaseModel):
@@ -79,12 +100,22 @@ class LabIn(BaseModel):
 
 
 class ProposalStatusIn(BaseModel):
-    status: Literal["proposed", "approved", "rejected", "applied"]
+    status: Literal["proposed", "validated", "approved", "rejected", "applied", "failed"]
 
 
 class DiaryIn(BaseModel):
     title: str = Field(min_length=1, max_length=160)
     content: str = Field(min_length=1, max_length=10000)
+
+
+class CodingLessonIn(BaseModel):
+    lesson: str = Field(min_length=5, max_length=8000)
+    category: str = Field(default="manual", max_length=50)
+    confidence: float = Field(default=0.8, ge=0.1, le=1.0)
+
+
+class ApplyProposalIn(BaseModel):
+    confirmation: str
 
 
 TOKENS: set[str] = set()
@@ -114,13 +145,7 @@ def health():
 
 @app.get("/api/model-status")
 async def model_status():
-    base = os.getenv("LLM_BASE_URL", "http://127.0.0.1:8080/v1").rstrip("/")
-    try:
-        async with httpx.AsyncClient(timeout=2.5) as client:
-            response = await client.get(f"{base}/models")
-        return {"ready": response.status_code < 400, "model": os.getenv("MODEL_NAME", "neura-local"), "detail": "pronto" if response.status_code < 400 else response.text[:200]}
-    except Exception:
-        return {"ready": False, "model": os.getenv("MODEL_NAME", "neura-local"), "detail": "download o caricamento del modello in corso"}
+    return provider_status()
 
 
 @app.post("/api/login")
@@ -175,6 +200,9 @@ Massimo 4 memorie. Se non c'è nulla: {"memories":[]}.
 @app.post("/api/chat")
 async def chat(data: ChatIn, authorization: str | None = Header(default=None)):
     auth(authorization)
+    if data.use_web and not data.internet_approved:
+        raise HTTPException(403, "Prima di accedere a Internet serve la tua autorizzazione esplicita.")
+    ensure_conversation(data.session_id, data.message)
     normalized = data.message.strip().lower().rstrip(".!?")
     if normalized in {"aggiornati", "auto aggiornati", "nèura aggiornati", "neura aggiornati"}:
         result = await consolidate_learning()
@@ -200,10 +228,30 @@ async def chat(data: ChatIn, authorization: str | None = Header(default=None)):
         "\n\nCONSOLIDAMENTI APPROVATI:\n" +
         ("\n---\n".join(reflections) if reflections else "Nessuno.")
     )
+    knowledge = search_knowledge(data.message, 6)
+    knowledge_context = "\n\n".join(
+        f"DOCUMENTO: {x['filename']} ({x['category']})\n{x['content']}" for x in knowledge
+    ) or "Nessun documento pertinente nella libreria."
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": "COSTITUZIONE VINCOLANTE DI NÈURA:\n" + load_constitution()},
         {"role": "system", "content": context},
+        {"role": "system", "content": "CONOSCENZA DALLA LIBRERIA LOCALE:\n" + knowledge_context},
     ]
+    web_sources = []
+    if data.use_web:
+        try:
+            web_sources = await search_web(data.message, 5)
+            web_context = "\n\n".join(
+                f"FONTE {i+1}: {x['title']}\nURL: {x['url']}\nESTRATTO: {x['snippet']}"
+                for i, x in enumerate(web_sources)
+            )
+            messages.append({
+                "role": "system",
+                "content": "Usa le seguenti fonti web recenti. Distingui chiaramente ciò che proviene dalle fonti e inserisci gli URL alla fine della risposta. Non inventare dettagli mancanti.\n\n" + web_context
+            })
+        except WebSearchError as exc:
+            messages.append({"role": "system", "content": f"La ricerca web richiesta non è riuscita: {exc}. Dillo chiaramente all'utente e rispondi solo con ciò che sai."})
     # Evita di duplicare il messaggio appena inserito.
     for item in recent:
         messages.append({"role": item["role"], "content": item["content"]})
@@ -220,6 +268,8 @@ async def chat(data: ChatIn, authorization: str | None = Header(default=None)):
         "message_id": assistant_id,
         "used_memories": relevant,
         "user_message_id": user_id,
+        "web_sources": web_sources,
+        "library_sources": [{"filename":x["filename"],"category":x["category"]} for x in knowledge],
     }
 
 
@@ -364,4 +414,133 @@ def lab_patch(proposal_id: int, authorization: str | None = Header(default=None)
     proposals = [p for p in list_proposals(200) if p["id"] == proposal_id]
     if not proposals:
         raise HTTPException(404, "Proposta non trovata")
-    return proposals[0]["patch"] or "# Nessuna patch generata"
+    return json.dumps(proposals[0].get("changes", []), ensure_ascii=False, indent=2)
+
+
+@app.post("/api/web/search")
+async def web_search_api(data: ChatIn, authorization: str | None = Header(default=None)):
+    auth(authorization)
+    try:
+        return {"results": await search_web(data.message, 8)}
+    except WebSearchError as exc:
+        raise HTTPException(502, str(exc))
+
+
+@app.get("/api/code-backups")
+def code_backups(authorization: str | None = Header(default=None)):
+    auth(authorization)
+    return {"backups": list_code_snapshots()}
+
+
+@app.post("/api/code-backups")
+def code_snapshot(authorization: str | None = Header(default=None)):
+    auth(authorization)
+    return create_code_snapshot("manual")
+
+
+@app.post("/api/code-backups/{filename}/rollback")
+def code_rollback(filename: str, authorization: str | None = Header(default=None)):
+    auth(authorization)
+    try:
+        return rollback_code(filename)
+    except FileNotFoundError:
+        raise HTTPException(404, "Backup del codice non trovato")
+
+
+@app.post("/api/lab/proposals/{proposal_id}/validate")
+def lab_validate(proposal_id: int, authorization: str | None = Header(default=None)):
+    auth(authorization)
+    try:
+        return validate_proposal(proposal_id)
+    except FileNotFoundError:
+        raise HTTPException(404, "Proposta non trovata")
+    except Exception as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post("/api/lab/proposals/{proposal_id}/apply")
+def lab_apply(proposal_id: int, data: ApplyProposalIn,
+              authorization: str | None = Header(default=None)):
+    auth(authorization)
+    if data.confirmation.strip() != f"APPLICA {proposal_id}":
+        raise HTTPException(
+            400, f"Conferma non valida. Scrivi esattamente: APPLICA {proposal_id}"
+        )
+    try:
+        return apply_proposal(proposal_id)
+    except FileNotFoundError:
+        raise HTTPException(404, "Proposta non trovata")
+    except Exception as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.get("/api/coding/lessons")
+def coding_lessons(authorization: str | None = Header(default=None)):
+    auth(authorization)
+    return {"lessons": list_lessons()}
+
+
+@app.post("/api/coding/lessons")
+def coding_lesson_add(data: CodingLessonIn,
+                      authorization: str | None = Header(default=None)):
+    auth(authorization)
+    lesson_id = add_lesson(
+        data.lesson, category=data.category,
+        source="manual", confidence=data.confidence
+    )
+    return {"ok": True, "id": lesson_id}
+
+
+@app.post("/api/self-diagnostic")
+def self_diagnostic(authorization: str | None = Header(default=None)):
+    auth(authorization)
+    return run_self_diagnostic()
+
+
+@app.get("/api/conversations")
+def conversations_list(q: str = "", authorization: str | None = Header(default=None)):
+    auth(authorization)
+    return {"conversations": search_sessions(q) if q.strip() else list_sessions()}
+
+@app.get("/api/conversations/{session_id}")
+def conversation_read(session_id: str, authorization: str | None = Header(default=None)):
+    auth(authorization)
+    return {"messages": session_messages(session_id)}
+
+@app.patch("/api/conversations/{session_id}/title")
+def conversation_rename(session_id: str, data: SessionRenameIn, authorization: str | None = Header(default=None)):
+    auth(authorization); rename_session(session_id, data.title); return {"ok": True}
+
+@app.patch("/api/conversations/{session_id}/archive")
+def conversation_archive(session_id: str, data: SessionArchiveIn, authorization: str | None = Header(default=None)):
+    auth(authorization); archive_session(session_id, data.archived); return {"ok": True}
+
+@app.delete("/api/conversations/{session_id}")
+def conversation_delete(session_id: str, authorization: str | None = Header(default=None)):
+    auth(authorization); delete_session(session_id); return {"ok": True}
+
+@app.get("/api/constitution")
+def constitution_get(authorization: str | None = Header(default=None)):
+    auth(authorization); return {"content": load_constitution()}
+
+@app.put("/api/constitution")
+def constitution_put(data: ConstitutionIn, authorization: str | None = Header(default=None)):
+    auth(authorization); save_constitution(data.content); return {"ok": True}
+
+@app.get("/api/library")
+def library_list(authorization: str | None = Header(default=None)):
+    auth(authorization); return {"documents": list_documents()}
+
+@app.post("/api/library/upload")
+async def library_upload(file: UploadFile = File(...), category: str = Form("Generale"), learn: bool = Form(True), authorization: str | None = Header(default=None)):
+    auth(authorization)
+    try: return await ingest(file, category, learn)
+    except ValueError as exc: raise HTTPException(400, str(exc))
+
+@app.post("/api/vision/analyze")
+async def vision_analyze(file: UploadFile = File(...), question: str = Form("Descrivi accuratamente questa immagine."), authorization: str | None = Header(default=None)):
+    auth(authorization)
+    data = await file.read()
+    if len(data) > 20_000_000: raise HTTPException(413, "Immagine troppo grande")
+    try: return {"answer": await analyze_image(data, question, file.content_type or "image/jpeg"), "filename": file.filename}
+    except RuntimeError as exc: raise HTTPException(502, str(exc))

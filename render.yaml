@@ -1,28 +1,39 @@
 services:
   - type: web
-    name: neura-ai
+    name: neura-cloud
     runtime: docker
     plan: starter
     healthCheckPath: /health
+    autoDeploy: true
     envVars:
       - key: DATA_DIR
         value: /var/data
-      - key: HF_HOME
-        value: /var/data/huggingface
-      - key: LLM_BASE_URL
-        value: http://127.0.0.1:8080/v1
-      - key: MODEL_NAME
-        value: neura-local
-      - key: LOCAL_MODEL
-        value: Qwen/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M
-      - key: MODEL_CONTEXT
-        value: "4096"
-      - key: MODEL_THREADS
-        value: "2"
       - key: APP_PASSWORD
         sync: false
       - key: ENCRYPTION_KEY
         generateValue: true
+      - key: LLM_API_BASE
+        value: https://api.openai.com/v1
+      - key: LLM_API_KEY
+        sync: false
+      - key: MODEL_NAME
+        value: gpt-4.1-mini
+      - key: VISION_MODEL
+        value: gpt-4.1-mini
+      - key: LLM_TIMEOUT
+        value: "180"
+      - key: LLM_RETRIES
+        value: "2"
+      - key: LLM_MAX_CONCURRENT
+        value: "3"
+      - key: MAX_HISTORY
+        value: "24"
+      - key: MAX_MEMORIES
+        value: "10"
+      - key: WEB_WORKERS
+        value: "1"
+      - key: TAVILY_API_KEY
+        sync: false
     disk:
       name: neura-data
       mountPath: /var/data
