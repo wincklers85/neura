@@ -13,14 +13,6 @@ services:
         sync: false
       - key: ENCRYPTION_KEY
         generateValue: true
-      - key: LLM_API_BASE
-        value: https://api.openai.com/v1
-      - key: LLM_API_KEY
-        sync: false
-      - key: MODEL_NAME
-        value: gpt-4.1-mini
-      - key: VISION_MODEL
-        value: gpt-4.1-mini
       - key: LLM_TIMEOUT
         value: "180"
       - key: LLM_RETRIES

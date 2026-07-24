@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from db import init_db
-from llm import chat as llm_chat, LLMError, provider_status
+from llm import chat as llm_chat, LLMError, provider_status, test_provider
 from web_access import search_web, read_page, WebSearchError
 from update_manager import create_code_snapshot, list_code_snapshots, rollback_code
 from memory import (
@@ -31,8 +31,9 @@ from conversations import ensure_conversation, list_sessions, rename_session, ar
 from constitution import load_constitution, save_constitution
 from library_engine import ingest, list_documents, search_knowledge
 from vision_engine import analyze_image
+from provider_config import public_config, save_provider_config
 
-app = FastAPI(title="NÈURA Surface", version="2.0.0")
+app = FastAPI(title="NÈURA Cloud", version="4.0.0")
 STATIC = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
@@ -61,6 +62,14 @@ Regole:
 
 class LoginIn(BaseModel):
     password: str
+
+
+class ProviderConfigIn(BaseModel):
+    provider: str = Field(default="custom", max_length=50)
+    api_base: str = Field(min_length=8, max_length=500)
+    api_key: str = Field(default="", max_length=1000)
+    model: str = Field(min_length=1, max_length=200)
+    vision_model: str = Field(default="", max_length=200)
 
 
 class ChatIn(BaseModel):
@@ -146,6 +155,31 @@ def health():
 @app.get("/api/model-status")
 async def model_status():
     return provider_status()
+
+
+@app.get("/api/provider-config")
+def get_provider_config(authorization: str | None = Header(default=None)):
+    auth(authorization)
+    return public_config()
+
+
+@app.put("/api/provider-config")
+def put_provider_config(data: ProviderConfigIn, authorization: str | None = Header(default=None)):
+    auth(authorization)
+    try:
+        return save_provider_config(data.model_dump())
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post("/api/provider-test")
+async def provider_test(authorization: str | None = Header(default=None)):
+    auth(authorization)
+    try:
+        answer = await test_provider()
+        return {"ok": True, "answer": answer, "status": provider_status()}
+    except LLMError as exc:
+        raise HTTPException(502, str(exc))
 
 
 @app.post("/api/login")

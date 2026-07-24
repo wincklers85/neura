@@ -1,23 +1,13 @@
-# NÈURA Cloud – deploy Render
+# Deploy rapido su Render
 
-## Metodo consigliato
-1. Carica **il contenuto di questa cartella** nella radice della repository GitHub.
-2. In Render scegli **New > Blueprint** e seleziona la repository.
-3. Configura almeno `APP_PASSWORD` e `LLM_API_KEY`.
-4. Avvia il deploy.
+Carica il contenuto di questa cartella nella root di GitHub. In Render seleziona **New → Blueprint**, collega la repository e conferma il servizio indicato da `render.yaml`.
 
-Il Dockerfile, `render.yaml`, `app.py` e `requirements.txt` devono essere visibili nella radice della repository, non dentro un'altra cartella.
+Dopo il deploy:
 
-## Se modifichi il servizio già esistente
-Imposta:
-- Runtime: Docker
-- Dockerfile Path: `./Dockerfile`
-- Health Check Path: `/health`
+1. apri l'indirizzo `.onrender.com`;
+2. accedi con `APP_PASSWORD`;
+3. apri **Impostazioni**;
+4. configura il motore AI;
+5. salva e prova la connessione.
 
-Non inserire manualmente una porta. Render passa la variabile `PORT` e NÈURA la usa automaticamente.
-
-## Controllo
-Quando il deploy è concluso, apri:
-`https://TUO-SERVIZIO.onrender.com/health`
-
-Deve rispondere con JSON contenente `"ok": true`.
+Per aggiornare: carica i nuovi file su GitHub. Render farà il deploy automatico. Il disco `/var/data` non viene cancellato.

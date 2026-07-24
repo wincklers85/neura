@@ -5,17 +5,16 @@ import os
 
 import httpx
 
+from provider_config import load_provider_config
+
 
 async def analyze_image(data: bytes, question: str, mime_type: str = "image/jpeg") -> str:
-    api_base = os.getenv("LLM_API_BASE", "https://api.openai.com/v1").rstrip("/")
-    api_key = os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", "")).strip()
-    model = os.getenv("VISION_MODEL", os.getenv("MODEL_NAME", "gpt-4.1-mini"))
-    if not api_key:
-        raise RuntimeError("LLM_API_KEY non configurata")
-
+    cfg = load_provider_config()
+    if not cfg["api_key"]:
+        raise RuntimeError("Configura prima il motore AI nelle Impostazioni.")
     encoded = base64.b64encode(data).decode("ascii")
     payload = {
-        "model": model,
+        "model": cfg["vision_model"] or cfg["model"],
         "messages": [{
             "role": "user",
             "content": [
@@ -23,13 +22,13 @@ async def analyze_image(data: bytes, question: str, mime_type: str = "image/jpeg
                 {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{encoded}"}},
             ],
         }],
-        "max_tokens": 1200,
+        "max_tokens": 1400,
     }
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    headers = {"Authorization": f"Bearer {cfg['api_key']}", "Content-Type": "application/json"}
+    timeout = httpx.Timeout(float(os.getenv("LLM_TIMEOUT", "180")), connect=20.0)
     try:
-        timeout = httpx.Timeout(float(os.getenv("LLM_TIMEOUT", "180")), connect=20.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(f"{api_base}/chat/completions", headers=headers, json=payload)
+            response = await client.post(f"{cfg['api_base']}/chat/completions", headers=headers, json=payload)
         if response.status_code >= 400:
             raise RuntimeError(f"HTTP {response.status_code}: {response.text[:500]}")
         answer = response.json()["choices"][0]["message"]["content"]
