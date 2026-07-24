@@ -136,6 +136,20 @@
         <h3>Aspetto</h3>
         <label class="setting-row"><span><strong>Tema scuro</strong><small>Il tema chiaro è quello predefinito.</small></span><input id="darkSwitch" type="checkbox"></label>
         <label class="setting-row"><span><strong>Lettura vocale</strong><small>Legge ad alta voce le risposte.</small></span><input id="speakSwitch" type="checkbox"></label>
+        <h3>Motore AI</h3>
+        <p>Configura qui il servizio che esegue il ragionamento. La chiave viene cifrata e salvata sul disco persistente di Render.</p>
+        <label>Fornitore</label>
+        <select id="providerSelect"></select>
+        <label>Indirizzo API</label>
+        <input id="providerBase" placeholder="https://api.openai.com/v1">
+        <label>Chiave API</label>
+        <input id="providerKey" type="password" placeholder="Lascia vuoto per mantenere quella già salvata">
+        <label>Modello chat</label>
+        <input id="providerModel" placeholder="gpt-4.1-mini">
+        <label>Modello immagini</label>
+        <input id="providerVision" placeholder="gpt-4.1-mini">
+        <div class="item-actions"><button id="saveProvider">Salva configurazione</button><button id="testProvider" class="secondary">Prova connessione</button></div>
+        <div id="providerStatusBox" class="notice hidden"></div>
         <h3>Sessione</h3>
         <button id="newSession" class="secondary">Nuova conversazione</button>
       </div>
